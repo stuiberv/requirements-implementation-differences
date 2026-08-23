@@ -1,0 +1,7 @@
+README.md
+docs/
+  product-scope.md
+requirements/
+  homepage.md
+  index.html
+  styles.css

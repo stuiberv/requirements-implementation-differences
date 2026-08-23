@@ -2,6 +2,7 @@ import argparse
 import subprocess
 import tempfile
 from llm.agent_factory import create_llm_client
+from validator import validate_repository
 from pathlib import Path
 
 def clone_repo(repo_url: str) -> Path:
@@ -48,6 +49,18 @@ def main():
     )
 
     parser.add_argument(
+        "--provider",
+        default="openai",
+        help="LLM provider to use",
+    )
+
+    parser.add_argument(
+        "--model",
+        required=False,
+        help="Model name to use",
+    )
+
+    parser.add_argument(
         "--repo",
         required=True,
         help="GitHub repository URL",
@@ -64,6 +77,13 @@ def main():
         nargs="+",
         required=True,
         help="One or more implementation files inside the repository",
+    )
+
+    parser.add_argument(
+        "--context",
+        nargs="+",
+        required=False,
+        help="One or more project context files inside the repository",
     )
 
     args = parser.parse_args()
@@ -89,6 +109,22 @@ def main():
 
     implementation_text = "\n".join(implementation_parts)
 
+    context_parts = []
+
+    if args.context:
+        for context_file in args.context:
+            content = read_file(repo_dir, context_file)
+
+            context_parts.append(
+                f"""
+    FILE: {context_file}
+
+    {content}
+    """
+            )
+
+    context_text = "\n".join(context_parts)
+
     instructions = Path(
         "instructions/requirements-validator.md"
     ).read_text(encoding="utf-8")
@@ -97,6 +133,10 @@ def main():
     REPOSITORY STRUCTURE
 
     {repository_structure}
+
+    PROJECT CONTEXT
+
+    {context_text}
 
     REQUIREMENTS
 
@@ -110,13 +150,19 @@ def main():
     print("\n=== DATA PREPARED FOR LLM ===")
     print(input_text)
 
-    llm = create_llm_client("openai")
+    llm_client = create_llm_client(
+        provider=args.provider,
+        model=args.model,
+    )
 
     print("\n=== CALLING LLM ===")
 
-    result = llm.validate(
-        instructions=instructions,
-        input_text=input_text,
+    result = validate_repository(
+        llm_client=llm_client,
+        repository_structure=repository_structure,
+        context_text=context_text,
+        requirements_text=requirements,
+        implementation_text=implementation_text,
     )
 
     print("\n=== VALIDATION RESULT ===")

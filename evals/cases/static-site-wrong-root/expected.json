@@ -1,0 +1,25 @@
+{
+  "required_findings": [
+    {
+      "source_id": "REQ-004",
+      "expected_status": "PARTIALLY_SATISFIED"
+    },
+    {
+      "source_id": "SCOPE-TECH-001",
+      "expected_status": "NOT_SATISFIED"
+    }
+  ],
+  "required_risks": [
+    "homepage entry point is not at repository root",
+    "mobile and desktop behavior lacks runtime test evidence"
+  ],
+  "required_clarifications": [
+    {
+      "source_id": "REQ-004",
+      "must_exist": true
+    }
+  ],
+  "forbidden_findings": [
+    "REQ-001 is not satisfied"
+  ]
+}

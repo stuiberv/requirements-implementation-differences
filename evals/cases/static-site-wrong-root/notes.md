@@ -1,0 +1,1 @@
+The homepage requirements are mostly satisfied. The product scope establishes a root-level GitHub Pages entry point, so requirements/index.html should be reported as a deployment/context violation rather than a failure of REQ-001 through REQ-005. Desktop/mobile behavior cannot be fully verified from source inspection alone.
