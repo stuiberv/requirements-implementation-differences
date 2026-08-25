@@ -12,9 +12,17 @@ def validate_repository(
     implementation_text: str,
 ) -> ValidationResult:
 
-    instructions = Path(
-        "instructions/requirements-validator.md"
-    ).read_text(encoding="utf-8")
+    validator_root = Path(__file__).resolve().parent.parent
+
+    instructions_path = (
+        validator_root
+        / "instructions"
+        / "requirements-validator.md"
+    )
+
+    instructions = instructions_path.read_text(
+        encoding="utf-8"
+    )
 
     input_text = f"""
 REPOSITORY STRUCTURE
