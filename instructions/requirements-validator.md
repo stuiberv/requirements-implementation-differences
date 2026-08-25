@@ -20,3 +20,4 @@ Identify:
 - Cite evidence from both the requirement and implementation.
 - If evidence is insufficient, return UNABLE_TO_VERIFY.
 - If the requirement is ambiguous, ask a clarification question rather than assuming an interpretation.
+- Distinguish implementation evidence from execution evidence. If a requirement explicitly concerns runtime behavior, compatibility, performance, accessibility, or other observable execution properties, static source inspection alone is not sufficient for SATISFIED unless the requirement can be conclusively proven from source.
