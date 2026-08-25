@@ -60,10 +60,16 @@ def main():
         help="Model name to use",
     )
 
-    parser.add_argument(
+    repo_source = parser.add_mutually_exclusive_group(required=True)
+
+    repo_source.add_argument(
         "--repo",
-        required=True,
         help="GitHub repository URL",
+    )
+
+    repo_source.add_argument(
+        "--local-repo",
+        help="Path to an already checked-out local repository",
     )
 
     parser.add_argument(
@@ -88,7 +94,16 @@ def main():
 
     args = parser.parse_args()
 
-    repo_dir = clone_repo(args.repo)
+    if args.local_repo:
+        repo_dir = Path(args.local_repo).resolve()
+
+        if not repo_dir.exists():
+            parser.error(f"Local repository does not exist: {repo_dir}")
+
+        if not repo_dir.is_dir():
+            parser.error(f"Local repository path is not a directory: {repo_dir}")
+    else:
+        repo_dir = clone_repo(args.repo)
 
     repository_structure = get_repo_structure(repo_dir)
 
@@ -124,31 +139,6 @@ def main():
             )
 
     context_text = "\n".join(context_parts)
-
-    instructions = Path(
-        "instructions/requirements-validator.md"
-    ).read_text(encoding="utf-8")
-
-    input_text = f"""
-    REPOSITORY STRUCTURE
-
-    {repository_structure}
-
-    PROJECT CONTEXT
-
-    {context_text}
-
-    REQUIREMENTS
-
-    {requirements}
-
-    IMPLEMENTATION
-
-    {implementation_text}
-    """
-
-    print("\n=== DATA PREPARED FOR LLM ===")
-    print(input_text)
 
     llm_client = create_llm_client(
         provider=args.provider,
