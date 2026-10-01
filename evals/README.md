@@ -43,11 +43,27 @@ The inventory is supplied as repo-tree.txt. Inputs are labelled with paths and
 line numbers before validation. Expected findings specify exact IDs and verdicts,
 source paths, required implementation evidence paths, and optional clarification.
 Unnumbered constraints use path-and-line IDs as defined in the contract.
+For deductions, `match_source_lines` lists every required premise in `source`.
+Such a rule's `id` is an evaluator label, not a required model-generated ID:
+matching uses valid citations to all premise lines instead. A single response
+finding must match uniquely and satisfy the expected verdict and evidence paths.
+`optional: true` permits additional recognized context findings without requiring
+them; their verdicts and citations are still checked. Unrecognized extra findings
+remain failures requiring review, not automatic proof of hallucination.
+
+The original deployment fixture retains its three informal scope statements.
+Companion cases cover a matching root layout and an unspecified publishing root,
+where declaring a nested entry point defective would require an unsupported
+assumption. Review deductions for a complete logical chain, not merely citations.
 
 The scorer rejects missing, duplicate, or unexpected requirement IDs; incorrect
 verdicts; absent required clarification; and missing or invalid citations. Quoted
 excerpts must occur at the cited line. Simple cases forbid engineering risks.
 No exact prose matching or model-based judge is used.
+
+After changing input fixtures or instructions, run a new live evaluation in a new
+directory. Saved responses describe the old inputs; rescoring them against modified
+fixtures does not evaluate the new behavior. Keep earlier runs for comparison.
 
 These checks detect invented requirement IDs and fabricated citations, but do not
 prove that an explanation follows logically from a real quote. Human review is

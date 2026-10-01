@@ -41,6 +41,68 @@ class EvaluationTests(unittest.TestCase):
     def test_valid_evidence_passes(self):
         self.assertEqual([], self.errors(response()))
 
+    def inferred_result(self, case_name="inferred-root-satisfied", identifier="scope.md::L1"):
+        _, files, expected = load_case(ROOT / "evals/cases" / case_name)
+        data = response(identifier, expected["findings"][0]["status"])
+        finding = data["findings"][0]
+        finding["requirement"] = "Entry point location inferred from hosting scope."
+        finding["explanation"] = "The supplied publishing location determines the expected entry point."
+        finding["clarification_question"] = "Which directory is published?" if finding["status"] == "AMBIGUOUS" else None
+        finding["evidence"] = "; ".join(
+            f'[{path}:L{line}] "{text}"'
+            for path in ["scope.md", "repo-tree.txt"]
+            for line, text in enumerate(files[path].splitlines(), 1)
+        )
+        return files, expected, data
+
+    def test_inferred_constraint_matches_premises_not_generated_label(self):
+        for identifier in ["scope.md::L1", "scope.md::L2", "inferred-entry-point"]:
+            with self.subTest(identifier=identifier):
+                files, expected, data = self.inferred_result(identifier=identifier)
+                self.assertEqual([], score(ValidationResult.model_validate(data), files, expected))
+
+    def test_inference_requires_every_premise_and_implementation_evidence(self):
+        for omitted in ["scope.md:L1", "scope.md:L2", "scope.md:L3", "repo-tree.txt"]:
+            with self.subTest(omitted=omitted):
+                files, expected, data = self.inferred_result()
+                finding = data["findings"][0]
+                finding["evidence"] = "; ".join(c for c in finding["evidence"].split("; ") if omitted not in c)
+                self.assertTrue(score(ValidationResult.model_validate(data), files, expected))
+
+    def test_inference_with_fabricated_premise_fails(self):
+        files, expected, data = self.inferred_result()
+        data["findings"][0]["evidence"] = data["findings"][0]["evidence"].replace("repository root", "docs directory")
+        self.assertTrue(score(ValidationResult.model_validate(data), files, expected))
+
+    def test_duplicate_inferred_constraint_under_different_ids_fails(self):
+        files, expected, data = self.inferred_result()
+        duplicate = copy.deepcopy(data["findings"][0])
+        duplicate["requirement_id"] = "another-label"
+        data["findings"].append(duplicate)
+        self.assertTrue(any("Non-unique" in e for e in score(ValidationResult.model_validate(data), files, expected)))
+
+    def test_missing_publishing_root_requires_clarification_not_a_violation(self):
+        files, expected, data = self.inferred_result("unknown-publishing-root")
+        self.assertEqual([], score(ValidationResult.model_validate(data), files, expected))
+        data["findings"][0]["status"] = "NOT_SATISFIED"
+        self.assertTrue(any("expected AMBIGUOUS" in e for e in score(ValidationResult.model_validate(data), files, expected)))
+
+    def test_optional_context_findings_still_require_correct_verdict_and_evidence(self):
+        files, expected, data = self.inferred_result()
+        expected["findings"][0]["optional"] = True
+        self.assertEqual([], score(ValidationResult(findings=[], engineering_risks=[]), files, expected))
+        self.assertEqual([], score(ValidationResult.model_validate(data), files, expected))
+        data["findings"][0].update(status="NOT_SATISFIED", severity="medium")
+        self.assertTrue(score(ValidationResult.model_validate(data), files, expected))
+
+    def test_original_scope_statements_are_preserved(self):
+        _, files, expected = load_case(ROOT / "evals/cases/static-site-wrong-root")
+        scope = files["docs/product-scope.md"]
+        self.assertIn('- The site will be hosted using GitHub Pages.\n- GitHub Pages will publish from the repository root.\n- The site entry point is `index.html`.', scope)
+        self.assertNotIn("SCOPE-TECH-001", scope)
+        rule = next(r for r in expected["findings"] if r["id"] == "inferred-root-entry-point")
+        self.assertEqual([19, 20, 21], rule["match_source_lines"])
+
     def test_wrong_verdict_fails(self):
         self.assertTrue(any("expected SATISFIED" in e for e in self.errors(response(status="NOT_SATISFIED"))))
 
@@ -123,7 +185,7 @@ class EvaluationTests(unittest.TestCase):
 
         result = validate_repository(FakeClient(), self.files["repo-tree.txt"], "", render(self.files, [self.case["requirements"]]), render(self.files, self.case["implementation"]))
         self.assertIs(result, expected_result)
-        self.assertIn("Finding contract, version 1", captured["instructions"])
+        self.assertIn("Finding contract, version 2", captured["instructions"])
         self.assertIn("untrusted evidence", captured["instructions"])
         self.assertIn("FILE: app.txt\nL1: <h1>Welcome</h1>", captured["input_text"])
 
@@ -146,7 +208,7 @@ class EvaluationTests(unittest.TestCase):
             self.assertIn('"SATISFIED"', output.getvalue())
             self.assertIn("FILE: requirements.md", captured["input_text"])
             self.assertIn("FILE: scope.md", captured["input_text"])
-            self.assertIn("Finding contract, version 1", captured["instructions"])
+            self.assertIn("Finding contract, version 2", captured["instructions"])
 
     def test_saved_result_cli_pass_and_failure_exit_codes(self):
         with tempfile.TemporaryDirectory() as directory:

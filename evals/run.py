@@ -34,6 +34,9 @@ def load_case(directory):
         for path in finding.get("evidence_paths", []):
             if path not in files:
                 raise ValueError("Expected evidence is not supplied")
+        for line in finding.get("match_source_lines", []):
+            if not isinstance(line, int) or not 1 <= line <= len(files[finding["source"]].splitlines()):
+                raise ValueError("Source matching line is outside supplied evidence")
     for path in [case["requirements"], *case.get("context", []), *case["implementation"]]:
         if path not in files:
             raise ValueError(f"Missing input: {path}")
@@ -54,12 +57,11 @@ def score(result, files, expected):
         if finding.requirement_id in actual:
             errors.append(f"Duplicate finding: {finding.requirement_id}")
         actual[finding.requirement_id] = finding
-    wanted = {item["id"]: item for item in expected["findings"]}
-    for identifier in sorted(actual.keys() - wanted.keys()):
-        errors.append(f"Unsupported requirement ID: {identifier}")
     valid_paths = {}
+    valid_lines = {}
     for item in [*result.findings, *result.engineering_risks]:
         paths = set()
+        locations = set()
         citations = CITATION.findall(item.evidence)
         if not citations:
             errors.append("Evidence has no checkable citation")
@@ -70,13 +72,33 @@ def score(result, files, expected):
                 errors.append(f"Invalid citation: {path}:L{line}")
             else:
                 paths.add(path)
+                locations.add((path, int(line)))
         if hasattr(item, "requirement_id"):
             valid_paths[item.requirement_id] = paths
-    for identifier, rule in wanted.items():
-        finding = actual.get(identifier)
-        if finding is None:
-            errors.append(f"Missing finding: {identifier}")
+            valid_lines[item.requirement_id] = locations
+    matched = set()
+    # Exact source IDs are reserved for their own rules. Inferred findings instead
+    # match all cited premises, independently of the model's generated label.
+    explicit_ids = {rule["id"] for rule in expected["findings"] if not rule.get("match_source_lines")}
+    for rule in expected["findings"]:
+        label = rule["id"]
+        if rule.get("match_source_lines"):
+            premises = {(rule["source"], line) for line in rule["match_source_lines"]}
+            candidates = [identifier for identifier in actual
+                          if identifier not in explicit_ids
+                          and premises <= valid_lines.get(identifier, set())]
+        else:
+            candidates = [label] if label in actual else []
+        if not candidates:
+            if not rule.get("optional", False):
+                errors.append(f"Missing finding: {label}")
             continue
+        if len(candidates) != 1 or candidates[0] in matched:
+            errors.append(f"Non-unique finding match: {label}")
+            continue
+        identifier = candidates[0]
+        matched.add(identifier)
+        finding = actual[identifier]
         if finding.status != rule["status"]:
             errors.append(f"{identifier}: expected {rule['status']}, got {finding.status}")
         required_paths = {rule["source"], *rule.get("evidence_paths", [])}
@@ -84,6 +106,8 @@ def score(result, files, expected):
             errors.append(f"{identifier}: missing source or implementation citations")
         if rule.get("clarification") and not (finding.clarification_question or "").strip():
             errors.append(f"{identifier}: missing clarification")
+    for identifier in sorted(actual.keys() - matched):
+        errors.append(f"Unsupported requirement ID: {identifier}")
     if expected.get("no_risks") and result.engineering_risks:
         errors.append("Unexpected engineering risks")
     return errors

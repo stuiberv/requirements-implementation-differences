@@ -40,11 +40,52 @@
       ]
     },
     {
-      "id": "SCOPE-TECH-001",
+      "id": "inferred-root-entry-point",
+      "match_source_lines": [
+        19,
+        20,
+        21
+      ],
       "status": "NOT_SATISFIED",
       "source": "docs/product-scope.md",
       "evidence_paths": [
         "repo-tree.txt"
+      ]
+    },
+    {
+      "id": "initial-scope",
+      "match_source_lines": [
+        10
+      ],
+      "optional": true,
+      "status": "SATISFIED",
+      "source": "docs/product-scope.md",
+      "evidence_paths": [
+        "requirements/index.html"
+      ]
+    },
+    {
+      "id": "static-html-css",
+      "match_source_lines": [
+        17
+      ],
+      "optional": true,
+      "status": "SATISFIED",
+      "source": "docs/product-scope.md",
+      "evidence_paths": [
+        "requirements/index.html"
+      ]
+    },
+    {
+      "id": "no-javascript",
+      "match_source_lines": [
+        18
+      ],
+      "optional": true,
+      "status": "SATISFIED",
+      "source": "docs/product-scope.md",
+      "evidence_paths": [
+        "requirements/index.html"
       ]
     }
   ]
