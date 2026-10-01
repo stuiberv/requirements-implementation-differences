@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 
-from evals.run import ROOT, load_case, render, score
+from evals.run import ROOT, create_run_directory, load_case, main, render, score
 from models import ValidationResult
 from validator import validate_repository
 import agent
@@ -40,6 +40,49 @@ class EvaluationTests(unittest.TestCase):
 
     def test_valid_evidence_passes(self):
         self.assertEqual([], self.errors(response()))
+
+    def test_repeated_live_runs_preserve_old_results_and_report_new_path(self):
+        class FakeClient:
+            def validate(self, instructions, input_text):
+                return ValidationResult.model_validate(response())
+
+        with tempfile.TemporaryDirectory() as directory:
+            requested = Path(directory) / "run-001"
+            requested.mkdir()
+            previous = requested / "satisfied.json"
+            previous.write_text("previous result", encoding="utf-8")
+            for suffix in [2, 3]:
+                output, logs = io.StringIO(), io.StringIO()
+                with patch("llm.agent_factory.create_llm_client", return_value=FakeClient()), contextlib.redirect_stdout(output), contextlib.redirect_stderr(logs):
+                    code = main(["--live", "--model", "fake", "--output", str(requested), "--case", "satisfied"])
+                self.assertEqual(0, code)
+                report = json.loads(output.getvalue())
+                actual = requested.with_name(f"run-001-{suffix}")
+                self.assertEqual(str(actual.resolve()), report["output_directory"])
+                self.assertIn(str(actual.resolve()), logs.getvalue())
+                self.assertEqual(report, json.loads((actual / "report.json").read_text()))
+                self.assertTrue((actual / "satisfied.json").is_file())
+                self.assertEqual("previous result", previous.read_text())
+            self.assertTrue((requested.with_name("run-001-2") / "report.json").is_file())
+
+    def test_new_output_directory_uses_requested_name(self):
+        with tempfile.TemporaryDirectory() as directory:
+            requested = Path(directory) / "nested" / "run"
+            self.assertEqual(requested, create_run_directory(requested))
+            self.assertTrue(requested.is_dir())
+
+    def test_output_file_collision_is_preserved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            requested = Path(directory) / "run"
+            requested.write_text("keep me", encoding="utf-8")
+            self.assertEqual(requested.with_name("run-2"), create_run_directory(requested))
+            self.assertEqual("keep me", requested.read_text())
+
+    def test_output_permission_error_does_not_retry_forever(self):
+        with patch.object(Path, "mkdir", side_effect=PermissionError("denied")) as mkdir:
+            with self.assertRaises(PermissionError):
+                create_run_directory(Path("run"))
+            self.assertEqual(1, mkdir.call_count)
 
     def inferred_result(self, case_name="inferred-root-satisfied", identifier="scope.md::L1"):
         _, files, expected = load_case(ROOT / "evals/cases" / case_name)

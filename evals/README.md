@@ -22,7 +22,15 @@ To evaluate a model explicitly (requires OPENAI_API_KEY and incurs API usage):
 python -m evals.run --live --model <model-name> --output .eval-results/run-001
 ```
 
-Use a new output directory for each run. The runner saves each response plus a
+You can repeat the same command. If the requested output directory already exists,
+the runner creates a sibling with a numeric suffix: `run-001-2`, `run-001-3`, etc.
+Existing files and directories are preserved, including partial runs. The actual
+output path is printed before evaluation and included in the JSON report as
+`output_directory`. Use that path with `--results` to score the new run.
+
+Keep earlier runs while comparing prompt, model, or fixture changes; remove unwanted
+run directories manually after review. There is no automatic deletion.
+The runner saves each response plus a
 report with the model and instruction fingerprint. Repeat runs to assess variance.
 Pass `--case satisfied` to select one case; repeat `--case` for multiple cases.
 To score responses saved from an earlier run without calling a model:

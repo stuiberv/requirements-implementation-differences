@@ -113,6 +113,19 @@ def score(result, files, expected):
     return errors
 
 
+def create_run_directory(requested):
+    """Reserve a fresh directory atomically, preserving previous runs."""
+    candidate = requested
+    suffix = 2
+    while True:
+        try:
+            candidate.mkdir(parents=True, exist_ok=False)
+            return candidate
+        except FileExistsError:
+            candidate = requested.with_name(f"{requested.name}-{suffix}")
+            suffix += 1
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -120,7 +133,7 @@ def main(argv=None):
     mode.add_argument("--results", type=Path, help="Score saved <case-name>.json responses")
     mode.add_argument("--live", action="store_true", help="Call the configured model (incurs API usage)")
     parser.add_argument("--model", help="Required for live evaluations")
-    parser.add_argument("--output", type=Path, help="New directory for live responses and report")
+    parser.add_argument("--output", type=Path, help="Live output directory; append -2, -3, etc. if it exists")
     parser.add_argument("--case", action="append", help="Run named case; repeat to select several")
     args = parser.parse_args(argv)
     directories = sorted((ROOT / "evals" / "cases").glob("*/case.json"))
@@ -133,7 +146,11 @@ def main(argv=None):
     if args.live:
         from llm.agent_factory import create_llm_client
         client = create_llm_client("openai", args.model)
-        args.output.mkdir(parents=True, exist_ok=False)
+        try:
+            args.output = create_run_directory(args.output)
+        except (OSError, ValueError) as exc:
+            parser.error(f"Cannot create output directory: {exc}")
+        print(f"Saving evaluation results to: {args.output.resolve()}", file=sys.stderr)
     reports = []
     for path in directories:
         name = path.parent.name
@@ -157,6 +174,8 @@ def main(argv=None):
     for path in [ROOT / "instructions/requirements-validator.md", ROOT / "docs/finding-contract.md"]:
         digest.update(path.read_bytes())
     report = {"mode": "fixtures" if args.check else "live" if args.live else "saved", "model": args.model, "instructions_sha256": digest.hexdigest(), "cases": reports}
+    if args.live:
+        report["output_directory"] = str(args.output.resolve())
     output = json.dumps(report, indent=2)
     print(output)
     if args.live:
