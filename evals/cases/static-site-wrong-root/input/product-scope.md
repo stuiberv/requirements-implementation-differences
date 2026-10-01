@@ -16,9 +16,8 @@ The first release contains a single homepage with:
 
 - The site is implemented as static HTML and CSS.
 - JavaScript is not required for the initial release.
-- The site will be hosted using GitHub Pages.
-- GitHub Pages will publish from the repository root.
-- The site entry point is `index.html`.
+### SCOPE-TECH-001
+The site must provide `index.html` at the repository root for GitHub Pages publishing.
 
 ## Out of Scope
 

@@ -23,6 +23,10 @@ def validate_repository(
     instructions = instructions_path.read_text(
         encoding="utf-8"
     )
+    contract = (validator_root / "docs" / "finding-contract.md").read_text(
+        encoding="utf-8"
+    )
+    instructions += "\n\n" + contract
 
     input_text = f"""
 REPOSITORY STRUCTURE

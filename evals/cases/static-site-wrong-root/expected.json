@@ -1,25 +1,51 @@
 {
-  "required_findings": [
+  "findings": [
     {
-      "source_id": "REQ-004",
-      "expected_status": "PARTIALLY_SATISFIED"
+      "id": "REQ-001",
+      "status": "SATISFIED",
+      "source": "requirements/homepage.md",
+      "evidence_paths": [
+        "requirements/index.html"
+      ]
     },
     {
-      "source_id": "SCOPE-TECH-001",
-      "expected_status": "NOT_SATISFIED"
-    }
-  ],
-  "required_risks": [
-    "homepage entry point is not at repository root",
-    "mobile and desktop behavior lacks runtime test evidence"
-  ],
-  "required_clarifications": [
+      "id": "REQ-002",
+      "status": "SATISFIED",
+      "source": "requirements/homepage.md",
+      "evidence_paths": [
+        "requirements/index.html"
+      ]
+    },
     {
-      "source_id": "REQ-004",
-      "must_exist": true
+      "id": "REQ-003",
+      "status": "SATISFIED",
+      "source": "requirements/homepage.md",
+      "evidence_paths": [
+        "requirements/index.html"
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "status": "AMBIGUOUS",
+      "source": "requirements/homepage.md",
+      "evidence_paths": [],
+      "clarification": true
+    },
+    {
+      "id": "REQ-005",
+      "status": "SATISFIED",
+      "source": "requirements/homepage.md",
+      "evidence_paths": [
+        "requirements/index.html"
+      ]
+    },
+    {
+      "id": "SCOPE-TECH-001",
+      "status": "NOT_SATISFIED",
+      "source": "docs/product-scope.md",
+      "evidence_paths": [
+        "repo-tree.txt"
+      ]
     }
-  ],
-  "forbidden_findings": [
-    "REQ-001 is not satisfied"
   ]
 }

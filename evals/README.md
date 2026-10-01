@@ -1,0 +1,56 @@
+# Evaluating the validator
+
+The versioned [finding contract](../docs/finding-contract.md) is loaded by the
+production validator as well as the evaluation runner. Cases cover static
+satisfaction, violations, partial compliance, ambiguity, missing runtime evidence,
+conflicting context, embedded instructions, unnumbered constraints, and deployment attribution.
+
+From the repository root, with the README dependencies installed:
+
+```powershell
+python -m unittest discover -s tests -v
+python -m evals.run --check
+```
+
+These commands are offline. Fixture validation checks input consistency; tests
+exercise scoring failures and the real validator with a fake client. Neither
+command measures an LLM's accuracy.
+
+To evaluate a model explicitly (requires OPENAI_API_KEY and incurs API usage):
+
+```powershell
+python -m evals.run --live --model <model-name> --output .eval-results/run-001
+```
+
+Use a new output directory for each run. The runner saves each response plus a
+report with the model and instruction fingerprint. Repeat runs to assess variance.
+Pass `--case satisfied` to select one case; repeat `--case` for multiple cases.
+To score responses saved from an earlier run without calling a model:
+
+```powershell
+python -m evals.run --results .eval-results/run-001
+```
+
+Exit status is zero when all selected cases pass, one on evaluation/fixture errors,
+and two on invalid command arguments. Missing responses fail, rather than skip.
+Live response logs go to stderr; the report is JSON on stdout.
+
+## Case format and scoring
+
+Each case has case.json and expected.json. A manifest maps repository-relative
+paths to inline text or fixture files, preserving the simulated repository layout.
+The inventory is supplied as repo-tree.txt. Inputs are labelled with paths and
+line numbers before validation. Expected findings specify exact IDs and verdicts,
+source paths, required implementation evidence paths, and optional clarification.
+Unnumbered constraints use path-and-line IDs as defined in the contract.
+
+The scorer rejects missing, duplicate, or unexpected requirement IDs; incorrect
+verdicts; absent required clarification; and missing or invalid citations. Quoted
+excerpts must occur at the cited line. Simple cases forbid engineering risks.
+No exact prose matching or model-based judge is used.
+
+These checks detect invented requirement IDs and fabricated citations, but do not
+prove that an explanation follows logically from a real quote. Human review is
+still required for semantic relevance, unsupported claims within prose, missing
+evidence explanations, risk quality, and severity calibration. The deployment case
+allows risks without requiring a particular wording or count.

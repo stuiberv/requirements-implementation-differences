@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "id": "REQ-001",
+      "status": "SATISFIED",
+      "source": "requirements.md",
+      "evidence_paths": [
+        "app.txt"
+      ]
+    }
+  ],
+  "no_risks": true
+}

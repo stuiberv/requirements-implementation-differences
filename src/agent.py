@@ -151,7 +151,7 @@ def main():
         llm_client=llm_client,
         repository_structure=repository_structure,
         context_text=context_text,
-        requirements_text=requirements,
+        requirements_text=f"FILE: {args.requirements}\n\n{requirements}",
         implementation_text=implementation_text,
     )
 
