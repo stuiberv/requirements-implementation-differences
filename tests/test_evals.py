@@ -62,6 +62,8 @@ class EvaluationTests(unittest.TestCase):
                 self.assertIn(str(actual.resolve()), logs.getvalue())
                 self.assertEqual(report, json.loads((actual / "report.json").read_text()))
                 self.assertTrue((actual / "satisfied.json").is_file())
+                self.assertIn("1 passed", (actual / "report.html").read_text(encoding="utf-8"))
+                self.assertIn("expected", report["cases"][0])
                 self.assertEqual("previous result", previous.read_text())
             self.assertTrue((requested.with_name("run-001-2") / "report.json").is_file())
 

@@ -43,6 +43,25 @@ Exit status is zero when all selected cases pass, one on evaluation/fixture erro
 and two on invalid command arguments. Missing responses fail, rather than skip.
 Live response logs go to stderr; the report is JSON on stdout.
 
+## HTML results page
+
+Live runs automatically save `report.html` beside `report.json`. Open it in a
+browser for pass/fail totals, expected and actual verdicts, categorized failure
+reasons, and expandable evidence, explanations, clarification questions, and risks.
+The page is standalone and requires no server or external assets.
+
+Generate or refresh the page for an existing run without rescoring or model calls:
+
+```powershell
+python -m evals.report --run .eval-results/run-001-2
+```
+
+This preserves the saved JSON and automated scores. New runs snapshot expected
+verdicts in report.json; older runs display current fixture expectations with a
+warning that they may differ from the original. Missing response files appear as
+warnings without changing recorded pass/fail results. Automated failures remain
+separate from human judgment about whether the model or evaluator needs adjustment.
+
 ## Case format and scoring
 
 Each case has case.json and expected.json. A manifest maps repository-relative

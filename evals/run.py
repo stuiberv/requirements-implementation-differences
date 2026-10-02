@@ -156,6 +156,7 @@ def main(argv=None):
         name = path.parent.name
         if args.case and name not in args.case:
             continue
+        expected = None
         try:
             case, files, expected = load_case(path.parent)
             errors = []
@@ -167,9 +168,9 @@ def main(argv=None):
             elif args.results:
                 result = ValidationResult.model_validate_json((args.results / f"{name}.json").read_text(encoding="utf-8"))
                 errors = score(result, files, expected)
-            reports.append({"case": name, "passed": not errors, "errors": errors})
+            reports.append({"case": name, "passed": not errors, "errors": errors, "expected": expected})
         except Exception as exc:
-            reports.append({"case": name, "passed": False, "errors": [f"{type(exc).__name__}: {exc}"]})
+            reports.append({"case": name, "passed": False, "errors": [f"{type(exc).__name__}: {exc}"], "expected": expected})
     digest = hashlib.sha256()
     for path in [ROOT / "instructions/requirements-validator.md", ROOT / "docs/finding-contract.md"]:
         digest.update(path.read_bytes())
@@ -180,6 +181,9 @@ def main(argv=None):
     print(output)
     if args.live:
         (args.output / "report.json").write_text(output, encoding="utf-8")
+        from evals.report import write_report
+        html_path = write_report(args.output)
+        print(f"HTML report: {html_path.resolve()}", file=sys.stderr)
     return 0 if reports and all(item["passed"] for item in reports) else 1
 
 
