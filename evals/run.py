@@ -14,7 +14,14 @@ sys.path.insert(0, str(ROOT / "src"))
 from models import ValidationResult
 from validator import validate_repository
 
-CITATION = re.compile(r'\[([^\]\n]+):L(\d+)\] "([^"\n]+)"')
+CITATION = re.compile(r'\[([^\]\n]+):L(\d+)\] "((?:\\[^\r\n]|[^"\\\r\n])+)"')
+
+
+def decode_citation(quote):
+    # Only decode the quote wrapper's escapes. Source text such as \n, \t,
+    # Unicode, and Windows paths must not be interpreted as string escapes.
+    return re.sub(r'\\(["\\])', lambda match: match.group(1), quote)
+
 STATUSES = {"SATISFIED", "PARTIALLY_SATISFIED", "NOT_SATISFIED", "AMBIGUOUS", "UNABLE_TO_VERIFY"}
 
 
@@ -78,10 +85,13 @@ def score(result, files, expected, checks=None):
             lines = files.get(path, "").splitlines()
             index = int(line) - 1
             source_line = lines[index] if 0 <= index < len(lines) else None
-            valid = source_line is not None and quote in source_line
+            decoded = decode_citation(quote)
+            # Accept literal source backslashes as well as wrapper-escaped quotes.
+            excerpt = quote if source_line is not None and quote in source_line else decoded
+            valid = source_line is not None and excerpt in source_line
             check("Citation excerpt", f"{target} / {path}:L{line}",
                   "An exact excerpt of this source line:\n" + source_line if source_line is not None else "An existing file and line (source line not found)",
-                  "Parsed excerpt:\n" + quote, valid, f"Invalid citation: {path}:L{line}", item.evidence)
+                  "Parsed excerpt:\n" + excerpt, valid, f"Invalid citation: {path}:L{line}", item.evidence)
             if valid:
                 paths.add(path)
                 locations.add((path, int(line)))

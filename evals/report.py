@@ -141,6 +141,8 @@ def write_report(directory):
     report = json.loads((directory / "report.json").read_text(encoding="utf-8"))
     report.setdefault("output_directory", str(directory.resolve()))
     responses, expectations, warnings = {}, {}, []
+    if report.get("rescoring_note"):
+        warnings.append(report["rescoring_note"])
     for case in report["cases"]:
         name = case["case"]
         # Case names must be a single path component, including on Windows.

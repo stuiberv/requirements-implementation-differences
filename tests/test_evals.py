@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 
-from evals.run import ROOT, create_run_directory, load_case, main, render, score
+from evals.run import ROOT, CITATION, decode_citation, create_run_directory, load_case, main, render, score
 from models import ValidationResult
 from validator import validate_repository
 import agent
@@ -40,6 +40,31 @@ class EvaluationTests(unittest.TestCase):
 
     def test_valid_evidence_passes(self):
         self.assertEqual([], self.errors(response()))
+
+    def test_escaped_html_quotes_are_compared_as_full_excerpt(self):
+        data = response()
+        source = '<meta name="viewport" content="width=device-width">'
+        files = dict(self.files, **{"app.txt": source})
+        quote = source.replace('"', '\\"')
+        data["findings"][0]["evidence"] = '[requirements.md:L1] "REQ-001"; [app.txt:L1] "' + quote + '"'
+        checks = []
+        self.assertEqual([], score(ValidationResult.model_validate(data), files, self.expected, checks))
+        citation = next(c for c in checks if c["kind"] == "Citation excerpt" and "app.txt:L1" in c["target"])
+        self.assertEqual("Parsed excerpt:\n" + source, citation["actual"])
+        # A genuine mismatch after the first embedded quote must still fail.
+        data["findings"][0]["evidence"] = data["findings"][0]["evidence"].replace("width=device-width", "width=wrong")
+        self.assertTrue(any("Invalid citation: app.txt:L1" in e for e in score(ValidationResult.model_validate(data), files, self.expected)))
+
+    def test_quote_decoding_preserves_source_escapes_and_unicode(self):
+        for source in [r'C:\temp\new', r'pattern\n\t\u1234', 'café', r'print(\"hello\")']:
+            with self.subTest(source=source):
+                wrapped = source.replace('\\', '\\\\').replace('"', '\\"')
+                parsed = CITATION.findall('[app.txt:L1] "' + wrapped + '"')[0][2]
+                self.assertEqual(source, decode_citation(parsed))
+        self.assertEqual(r'C:\temp\new', decode_citation(r'C:\temp\new'))
+
+    def test_unterminated_escaped_citation_is_not_a_valid_prefix(self):
+        self.assertEqual([], CITATION.findall(r'[app.txt:L1] "<meta name=\"viewport\">'))
 
     def test_check_comparisons_include_citation_source_and_actual_excerpt(self):
         data = response()
