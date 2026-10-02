@@ -50,6 +50,18 @@ browser for pass/fail totals, expected and actual verdicts, categorized failure
 reasons, and expandable evidence, explanations, clarification questions, and risks.
 The page is standalone and requires no server or external assets.
 
+Each failure links to expected-versus-actual check details. Citation checks show
+the exact source line beside the excerpt extracted by the parser, with the full
+model evidence expandable below it. An excerpt need only occur within the line;
+the evaluator does not prescribe one exact quotation. Finding coverage, uniqueness,
+verdicts, required evidence sources, clarification, and risk checks also show their
+expected and actual values. Failed checks are visible immediately; passed checks
+are grouped in an expandable section.
+
+New reports save these comparisons at evaluation time. For older runs, HTML
+generation reconstructs comparisons using the current evaluator and fixture sources
+and labels them accordingly. It never replaces the original saved scores or JSON.
+
 Generate or refresh the page for an existing run without rescoring or model calls:
 
 ```powershell

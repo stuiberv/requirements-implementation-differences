@@ -50,12 +50,20 @@ def render(files, paths):
     )
 
 
-def score(result, files, expected):
+def score(result, files, expected, checks=None):
     errors = []
+    def check(kind, target, wanted, observed, passed, error, evidence=None):
+        if checks is not None:
+            checks.append({"kind": kind, "target": target, "expected": wanted,
+                           "actual": observed, "passed": bool(passed), "evidence": evidence})
+        if not passed:
+            errors.append(error)
+
     actual = {}
     for finding in result.findings:
-        if finding.requirement_id in actual:
-            errors.append(f"Duplicate finding: {finding.requirement_id}")
+        check("Unique ID", finding.requirement_id, "One finding per ID",
+              "Duplicate" if finding.requirement_id in actual else "Unique",
+              finding.requirement_id not in actual, f"Duplicate finding: {finding.requirement_id}")
         actual[finding.requirement_id] = finding
     valid_paths = {}
     valid_lines = {}
@@ -63,14 +71,18 @@ def score(result, files, expected):
         paths = set()
         locations = set()
         citations = CITATION.findall(item.evidence)
-        if not citations:
-            errors.append("Evidence has no checkable citation")
+        target = getattr(item, "requirement_id", getattr(item, "risk", "Evidence"))
+        check("Citation presence", target, "At least one parseable citation",
+              f"{len(citations)} parsed", bool(citations), "Evidence has no checkable citation", item.evidence)
         for path, line, quote in citations:
             lines = files.get(path, "").splitlines()
             index = int(line) - 1
-            if index < 0 or index >= len(lines) or quote not in lines[index]:
-                errors.append(f"Invalid citation: {path}:L{line}")
-            else:
+            source_line = lines[index] if 0 <= index < len(lines) else None
+            valid = source_line is not None and quote in source_line
+            check("Citation excerpt", f"{target} / {path}:L{line}",
+                  "An exact excerpt of this source line:\n" + source_line if source_line is not None else "An existing file and line (source line not found)",
+                  "Parsed excerpt:\n" + quote, valid, f"Invalid citation: {path}:L{line}", item.evidence)
+            if valid:
                 paths.add(path)
                 locations.add((path, int(line)))
         if hasattr(item, "requirement_id"):
@@ -89,27 +101,38 @@ def score(result, files, expected):
                           and premises <= valid_lines.get(identifier, set())]
         else:
             candidates = [label] if label in actual else []
+        match_description = (f"Citations to {rule['source']} lines {rule['match_source_lines']}"
+                             if rule.get("match_source_lines") else f"ID {label}")
+        check("Finding coverage", label,
+              ("Optional: " if rule.get("optional") else "Required: ") + match_description,
+              candidates, bool(candidates) or rule.get("optional", False), f"Missing finding: {label}")
         if not candidates:
-            if not rule.get("optional", False):
-                errors.append(f"Missing finding: {label}")
             continue
-        if len(candidates) != 1 or candidates[0] in matched:
-            errors.append(f"Non-unique finding match: {label}")
+        unique = len(candidates) == 1 and candidates[0] not in matched
+        check("Finding matching", label, "Exactly one previously unmatched finding",
+              candidates, unique, f"Non-unique finding match: {label}")
+        if not unique:
             continue
         identifier = candidates[0]
         matched.add(identifier)
         finding = actual[identifier]
-        if finding.status != rule["status"]:
-            errors.append(f"{identifier}: expected {rule['status']}, got {finding.status}")
+        check("Verdict", identifier, rule["status"], finding.status,
+              finding.status == rule["status"], f"{identifier}: expected {rule['status']}, got {finding.status}")
         required_paths = {rule["source"], *rule.get("evidence_paths", [])}
-        if not required_paths <= valid_paths.get(identifier, set()):
-            errors.append(f"{identifier}: missing source or implementation citations")
-        if rule.get("clarification") and not (finding.clarification_question or "").strip():
-            errors.append(f"{identifier}: missing clarification")
+        observed_paths = valid_paths.get(identifier, set())
+        check("Evidence sources", identifier, sorted(required_paths), sorted(observed_paths),
+              required_paths <= observed_paths, f"{identifier}: missing source or implementation citations")
+        if rule.get("clarification"):
+            check("Clarification", identifier, "A nonempty clarification question",
+                  finding.clarification_question, bool((finding.clarification_question or "").strip()),
+                  f"{identifier}: missing clarification")
     for identifier in sorted(actual.keys() - matched):
-        errors.append(f"Unsupported requirement ID: {identifier}")
-    if expected.get("no_risks") and result.engineering_risks:
-        errors.append("Unexpected engineering risks")
+        check("Unexpected finding", identifier, "A finding matching one of the fixture rules",
+              identifier, False, f"Unsupported requirement ID: {identifier}")
+    if expected.get("no_risks"):
+        check("Engineering risks", "case", "No engineering risks",
+              [risk.risk for risk in result.engineering_risks], not result.engineering_risks,
+              "Unexpected engineering risks")
     return errors
 
 
@@ -157,6 +180,7 @@ def main(argv=None):
         if args.case and name not in args.case:
             continue
         expected = None
+        checks = []
         try:
             case, files, expected = load_case(path.parent)
             errors = []
@@ -164,13 +188,14 @@ def main(argv=None):
                 with contextlib.redirect_stdout(sys.stderr):
                     result = validate_repository(client, files["repo-tree.txt"], render(files, case.get("context", [])), render(files, [case["requirements"]]), render(files, case["implementation"]))
                 (args.output / f"{name}.json").write_text(result.model_dump_json(indent=2), encoding="utf-8")
-                errors = score(result, files, expected)
+                errors = score(result, files, expected, checks)
             elif args.results:
                 result = ValidationResult.model_validate_json((args.results / f"{name}.json").read_text(encoding="utf-8"))
-                errors = score(result, files, expected)
-            reports.append({"case": name, "passed": not errors, "errors": errors, "expected": expected})
+                errors = score(result, files, expected, checks)
+            reports.append({"case": name, "passed": not errors, "errors": errors, "expected": expected, "checks": checks})
         except Exception as exc:
-            reports.append({"case": name, "passed": False, "errors": [f"{type(exc).__name__}: {exc}"], "expected": expected})
+            checks.append({"kind": "Execution / validation", "target": name, "expected": "Readable inputs and a response satisfying the finding schema", "actual": f"{type(exc).__name__}: {exc}", "passed": False})
+            reports.append({"case": name, "passed": False, "errors": [f"{type(exc).__name__}: {exc}"], "expected": expected, "checks": checks})
     digest = hashlib.sha256()
     for path in [ROOT / "instructions/requirements-validator.md", ROOT / "docs/finding-contract.md"]:
         digest.update(path.read_bytes())

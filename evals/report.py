@@ -36,6 +36,25 @@ def finding_details(finding):
     return f"<details><summary>{text(title)}</summary><dl>{body}</dl></details>"
 
 
+def check_table(checks):
+    if not checks:
+        return "<p>No check comparisons available.</p>"
+    rows = []
+    for check in checks:
+        status = "PASS" if check["passed"] else "FAIL"
+        evidence = ("<details><summary>Full model evidence</summary><pre>"
+                    + text(check["evidence"]) + "</pre></details>") if check.get("evidence") else ""
+        def value(item):
+            return text(json.dumps(item, ensure_ascii=False, indent=2) if isinstance(item, (list, dict)) else item)
+        rows.append(f'<tr><td>{text(check["kind"])}<br>{text(check["target"])}</td>'
+                    f'<td class="{status.lower()}">{status}</td>'
+                    f'<td><pre>{value(check["expected"])}</pre></td>'
+                    f'<td><pre>{value(check["actual"])}</pre>{evidence}</td></tr>')
+    return ('<div class="table-wrap"><table><thead><tr><th>Check / finding</th>'
+            '<th>Result</th><th>Expected</th><th>Actual</th></tr></thead><tbody>'
+            + ''.join(rows) + '</tbody></table></div>')
+
+
 def render_report(report, responses, expectations, warnings=()):
     cases = report.get("cases", [])
     passed = sum(case.get("passed") is True for case in cases)
@@ -50,6 +69,8 @@ def render_report(report, responses, expectations, warnings=()):
             for error in case.get("errors", [])
         )
         reasons = f"<ul>{errors}</ul>" if errors else "No recorded errors"
+        if errors:
+            reasons += f'<p><a href="#checks-{index}">Compare expected and actual checks</a></p>'
         expected = expectations.get(name)
         expected_list = "<ul>" + "".join(
             f"<li>{text(rule['id'])}: {text(rule['status'])}"
@@ -68,8 +89,16 @@ def render_report(report, responses, expectations, warnings=()):
         )
         details = "".join(finding_details(item) for item in response.get("findings", []))
         risks = "".join(finding_details(item) for item in response.get("engineering_risks", []))
+        checks = case.get("checks", [])
+        failed_checks = [check for check in checks if not check["passed"]]
+        passed_checks = [check for check in checks if check["passed"]]
+        comparisons = (f'<h3 id="checks-{index}">Expected vs actual checks</h3>'
+                       + ("<p>Comparisons reconstructed using current evaluator and fixture sources; saved score unchanged.</p>" if case.get("checks_reconstructed") else "")
+                       + check_table(failed_checks)
+                       + f'<details><summary>Passed checks ({len(passed_checks)})</summary>{check_table(passed_checks)}</details>')
         sections.append(
             f'<section id="case-{index}"><h2>{text(name)} · {status}</h2>'
+            f'{comparisons}'
             f'<h3>Findings</h3>{details or "<p>No response findings available.</p>"}'
             f'<h3>Engineering risks</h3>{risks or "<p>None reported.</p>"}</section>'
         )
@@ -89,6 +118,7 @@ section {{ margin-top: 2rem; padding: 1rem; background: white; border: 1px solid
 details {{ padding: .6rem; border-bottom: 1px solid #dce3e9; }} summary {{ cursor: pointer; font-weight: 600; }}
 dt {{ font-weight: 600; margin-top: .65rem; }} dd {{ margin-left: 0; white-space: pre-wrap; overflow-wrap: anywhere; }}
 .notice {{ background: #fff2ce; padding: 1rem; margin: 1rem 0; }} code {{ overflow-wrap: anywhere; }}
+pre {{ white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; font-size: .9rem; }}
 a {{ color: #1559a0; }} @media print {{ body {{ max-width: none; margin: 0; }} }}
 </style></head><body>
 <h1>Evaluation results</h1>
@@ -136,6 +166,16 @@ def write_report(directory):
                 warnings.append(f"{name}: expectations were not saved with this run; displaying current fixture expectations, which may differ from the original.")
             except (OSError, ValueError):
                 warnings.append(f"{name}: expected verdicts unavailable.")
+        if "checks" not in case and name in responses and expectations.get(name) is not None:
+            try:
+                from evals.run import ROOT, ValidationResult, load_case, score
+                _, files, _ = load_case(ROOT / "evals" / "cases" / name)
+                checks = []
+                score(ValidationResult.model_validate(responses[name]), files, expectations[name], checks)
+                case["checks"] = checks
+                case["checks_reconstructed"] = True
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                warnings.append(f"{name}: check comparisons unavailable ({exc}).")
     output = directory / "report.html"
     output.write_text(render_report(report, responses, expectations, warnings), encoding="utf-8")
     return output

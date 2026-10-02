@@ -7,6 +7,20 @@ from evals.report import render_report, write_report
 
 
 class ReportTests(unittest.TestCase):
+    def test_check_comparisons_show_escaped_source_and_actual_with_link(self):
+        report = {"cases": [{"case": "example", "passed": False,
+            "errors": ["Invalid citation: app:L1"], "checks": [{
+                "kind": "Citation excerpt", "target": "app:L1", "passed": False,
+                "expected": '<meta name="viewport">', "actual": '<meta name=\\',
+                "evidence": 'Original <meta name=\\"viewport\\">',
+            }]}]}
+        html = render_report(report, {}, {})
+        self.assertIn('href="#checks-0"', html)
+        self.assertIn("&lt;meta name=&quot;viewport&quot;&gt;", html)
+        self.assertIn("&lt;meta name=\\", html)
+        self.assertIn("Full model evidence", html)
+        self.assertNotIn('<meta name="viewport">', html)
+
     def test_scores_categories_and_untrusted_text_are_displayed_safely(self):
         report = {"model": "test", "cases": [
             {"case": "good", "passed": True, "errors": []},

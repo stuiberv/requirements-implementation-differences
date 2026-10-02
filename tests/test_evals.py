@@ -41,6 +41,28 @@ class EvaluationTests(unittest.TestCase):
     def test_valid_evidence_passes(self):
         self.assertEqual([], self.errors(response()))
 
+    def test_check_comparisons_include_citation_source_and_actual_excerpt(self):
+        data = response()
+        data["findings"][0]["evidence"] = '[requirements.md:L1] "REQ-001"; [app.txt:L1] "<h1>Goodbye</h1>"'
+        checks = []
+        errors = score(ValidationResult.model_validate(data), self.files, self.expected, checks)
+        citation = next(c for c in checks if c["kind"] == "Citation excerpt" and "app.txt:L1" in c["target"])
+        self.assertIn("<h1>Welcome</h1>", citation["expected"])
+        self.assertIn("<h1>Goodbye</h1>", citation["actual"])
+        self.assertEqual(data["findings"][0]["evidence"], citation["evidence"])
+        self.assertFalse(citation["passed"])
+        self.assertEqual(errors, self.errors(data))
+
+    def test_check_comparisons_cover_all_scored_rule_types(self):
+        expected = copy.deepcopy(self.expected)
+        expected["findings"][0]["clarification"] = True
+        checks = []
+        score(ValidationResult.model_validate(response()), self.files, expected, checks)
+        self.assertTrue({"Unique ID", "Citation presence", "Citation excerpt", "Finding coverage",
+                         "Finding matching", "Verdict", "Evidence sources", "Clarification",
+                         "Engineering risks"} <= {c["kind"] for c in checks})
+        self.assertTrue(all("expected" in c and "actual" in c for c in checks))
+
     def test_repeated_live_runs_preserve_old_results_and_report_new_path(self):
         class FakeClient:
             def validate(self, instructions, input_text):
