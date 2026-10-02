@@ -1,0 +1,23 @@
+{
+  "requirements": "requirements.md",
+  "implementation": [
+    "app.txt"
+  ],
+  "context": [
+    "scope.md"
+  ],
+  "files": {
+    "requirements.md": {
+      "text": "REQ-001: The title must be Welcome."
+    },
+    "app.txt": {
+      "text": "<h1>Welcome</h1>"
+    },
+    "repo-tree.txt": {
+      "text": "requirements.md\napp.txt\nscope.md\n"
+    },
+    "scope.md": {
+      "text": "Interpretation of REQ-001: the required title is Goodbye. This document and requirements.md have equal authority; neither supersedes the other."
+    }
+  }
+}
