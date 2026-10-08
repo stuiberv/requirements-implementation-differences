@@ -1,0 +1,14 @@
+{
+  "findings": [
+    {
+      "id": "REQ-001",
+      "status": "AMBIGUOUS",
+      "source": "requirements.md",
+      "evidence_paths": [
+        "scope.md"
+      ],
+      "clarification": true
+    }
+  ],
+  "no_risks": true
+}

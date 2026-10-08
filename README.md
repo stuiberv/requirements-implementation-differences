@@ -32,9 +32,10 @@ Current structure:
     src/
         agent.py
         models.py
+        validator.py
 
         llm/
-            base.py
+            llm_agent.py
             agent_factory.py
             openai_client.py
 
@@ -127,6 +128,21 @@ The validation result includes requirement-level findings such as:
 - Clarification questions when applicable
 
 The agent can also identify engineering risks that are not necessarily direct requirement violations, such as missing test coverage.
+
+## Finding contract and evaluations
+
+Verdict definitions, source identity, citations, and escalation rules are defined
+in [the finding contract](docs/finding-contract.md), which is loaded on each validation.
+See [the evaluation guide](evals/README.md) for offline tests, fixture checks, and
+opt-in live model evaluations.
+
+```powershell
+python -m unittest discover -s tests -v
+python -m evals.run --check
+```
+
+The CLI also accepts `--local-repo <path>` instead of `--repo`, optional
+`--context <file> [<additional-files>]`, and `--provider` / `--model` options.
 
 ## Status
 

@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "id": "entry-point-location",
+      "match_source_lines": [
+        1,
+        2,
+        3
+      ],
+      "source": "scope.md",
+      "status": "SATISFIED",
+      "evidence_paths": [
+        "repo-tree.txt"
+      ]
+    }
+  ],
+  "no_risks": true
+}

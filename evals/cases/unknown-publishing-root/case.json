@@ -1,0 +1,18 @@
+{
+  "requirements": "scope.md",
+  "context": [],
+  "implementation": [
+    "site/index.html"
+  ],
+  "files": {
+    "scope.md": {
+      "text": "The site will be hosted using GitHub Pages.\nThe site entry point is `index.html`."
+    },
+    "site/index.html": {
+      "text": "<h1>Welcome</h1>"
+    },
+    "repo-tree.txt": {
+      "text": "scope.md\nsite/\n  index.html\n"
+    }
+  }
+}

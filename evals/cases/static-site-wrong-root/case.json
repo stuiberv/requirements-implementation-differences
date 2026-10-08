@@ -1,0 +1,27 @@
+{
+  "requirements": "requirements/homepage.md",
+  "implementation": [
+    "requirements/index.html",
+    "requirements/styles.css"
+  ],
+  "context": [
+    "docs/product-scope.md"
+  ],
+  "files": {
+    "requirements/homepage.md": {
+      "file": "input/homepage.md"
+    },
+    "requirements/index.html": {
+      "file": "input/index.html"
+    },
+    "requirements/styles.css": {
+      "file": "input/styles.css"
+    },
+    "docs/product-scope.md": {
+      "file": "input/product-scope.md"
+    },
+    "repo-tree.txt": {
+      "file": "repo-tree.txt"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "findings": [
+    {
+      "id": "requirements.md::L1",
+      "status": "NOT_SATISFIED",
+      "source": "requirements.md",
+      "evidence_paths": ["app.txt"]
+    }
+  ],
+  "no_risks": true
+}

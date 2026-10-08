@@ -1,0 +1,18 @@
+{
+  "requirements": "requirements.md",
+  "implementation": [
+    "app.txt"
+  ],
+  "context": [],
+  "files": {
+    "requirements.md": {
+      "text": "REQ-001: The page must render without horizontal scrolling at viewport widths 375px and 1280px in Chrome."
+    },
+    "app.txt": {
+      "text": "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<style>body { max-width: 900px; }</style>"
+    },
+    "repo-tree.txt": {
+      "text": "requirements.md\napp.txt\n"
+    }
+  }
+}
